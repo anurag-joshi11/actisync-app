@@ -1,0 +1,29 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.ActiSync" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Background and text -->
+        <item name="android:windowBackground">#F5F5F5</item>
+        <item name="android:textColorPrimary">#212121</item>
+
+        <!-- Primary colors -->
+        <item name="colorPrimary">#4A90E2</item>
+        <item name="colorPrimaryDark">#4178BE</item>
+        <item name="colorAccent">#FF6F61</item>
+
+        <!-- Navigation/status bars -->
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:statusBarColor">#4178BE</item>
+
+        <!-- Font -->
+        <item name="android:fontFamily">sans-serif</item>
+
+        <!-- Optional custom button style -->
+        <item name="android:buttonStyle">@style/ActiSyncButton</item>
+    </style>
+
+    <!-- Custom button style (uses drawable for rounded corners) -->
+    <style name="ActiSyncButton" parent="Widget.AppCompat.Button">
+        <item name="android:background">@drawable/button_primary</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+</resources>
