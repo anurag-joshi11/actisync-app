@@ -1,4 +1,5 @@
 package com.actisync.app
+//testing
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -36,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val userName = "Majid"
+        val userName = "Sameha"
         val currentTime = SimpleDateFormat("EEEE, MMM dd yyyy - hh:mm a", Locale.getDefault()).format(Date())
         binding.textGreeting.text = "Hello $userName!\nToday is $currentTime"
 
