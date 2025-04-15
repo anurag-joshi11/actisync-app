@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ActiSync</string>
+    <string name="title_activity_recognition_receiver">ActivityRecognitionReceiver</string>
+</resources>

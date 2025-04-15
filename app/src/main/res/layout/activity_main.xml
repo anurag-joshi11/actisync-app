@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="24dp"
+    android:background="@android:color/white">
+
+    <TextView
+        android:id="@+id/textGreeting"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello!"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="24dp"
+        android:textColor="@android:color/black" />
+
+    <ImageView
+        android:id="@+id/imageActivity"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginTop="8dp"
+        android:src="@drawable/ic_unknown"
+        android:scaleType="fitCenter"
+        android:contentDescription="Activity Image" />
+
+    <TextView
+        android:id="@+id/textActivity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Current activity: N/A"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp"
+        android:textStyle="italic"
+        android:textColor="@android:color/black" />
+</LinearLayout>
