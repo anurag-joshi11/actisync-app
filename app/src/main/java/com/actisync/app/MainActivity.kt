@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val userName = "Sameha"
+        val userName = "Anurag"
         val currentTime = SimpleDateFormat("EEEE, MMM dd yyyy - hh:mm a", Locale.getDefault()).format(Date())
         binding.textGreeting.text = "Hello $userName!\nToday is $currentTime"
 
