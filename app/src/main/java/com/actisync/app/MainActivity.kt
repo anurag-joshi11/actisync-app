@@ -1,114 +1,145 @@
 package com.actisync.app
-//testing
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.app.PendingIntent
-import android.content.*
-import android.content.pm.PackageManager
-import android.os.Build
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
-import androidx.annotation.RequiresApi
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import com.actisync.app.databinding.ActivityMainBinding
-import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityRecognitionClient
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
+import kotlin.math.sqrt
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var activityRecognitionClient: ActivityRecognitionClient
+    private lateinit var sensorManager: SensorManager
+    private var accelerometer: Sensor? = null
 
-    private val activityUpdateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val activity = intent?.getStringExtra("activity") ?: return
-            updateActivityUI(activity)
-        }
-    }
+    private var lastActivity: String? = null
+    private var lastActivityStartTime: Long = 0L
+
+    private val magnitudeWindow = LinkedList<Float>()
+    private val windowSize = 20
+
+    private var currentStableActivity: String? = null
+    private var activityConsistencyCounter = 0
+    private val stabilityThreshold = 3
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val userName = "Anurag"
+        val userName = "Majid"
         val currentTime = SimpleDateFormat("EEEE, MMM dd yyyy - hh:mm a", Locale.getDefault()).format(Date())
         binding.textGreeting.text = "Hello $userName!\nToday is $currentTime"
 
-        if (checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.ACTIVITY_RECOGNITION), 101)
-        } else {
-            startActivityRecognition()
-        }
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        updateActivityUI("STILL")
+        lastActivity = "STILL"
+        currentStableActivity = "STILL"
+        lastActivityStartTime = System.currentTimeMillis()
     }
 
-    private fun startActivityRecognition() {
-        activityRecognitionClient = ActivityRecognition.getClient(this)
-        val intent = Intent(this, ActivityRecognitionReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            this,
-            1001,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
-            return
-        }
-
-        activityRecognitionClient.requestActivityUpdates(2000L, pendingIntent)
-            .addOnSuccessListener {
-                Log.d("MainActivity", "Activity updates registered.")
-            }
-            .addOnFailureListener {
-                Log.e("MainActivity", "Failed to register activity updates", it)
-            }
-    }
-
-    @SuppressLint("SetTextI18n")
-    private fun updateActivityUI(activity: String) {
-        binding.textActivity.text = "Current activity: $activity"
-
-        val imageRes = when (activity) {
-            "WALKING" -> R.drawable.ic_walking
-            "RUNNING" -> R.drawable.ic_running
-            "IN_VEHICLE" -> R.drawable.ic_vehicle
-            "STILL" -> R.drawable.ic_still
-            else -> R.drawable.ic_unknown
-        }
-
-        binding.imageActivity.setImageResource(imageRes)
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 101 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            Log.d("Permissions", "ACTIVITY_RECOGNITION permission granted")
-            startActivityRecognition()
-        } else {
-            Log.w("Permissions", "ACTIVITY_RECOGNITION permission denied")
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onResume() {
         super.onResume()
-        val filter = IntentFilter("com.actisync.app.ACTIVITY_UPDATE")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(activityUpdateReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(activityUpdateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        accelerometer?.also {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
 
     override fun onPause() {
         super.onPause()
-        unregisterReceiver(activityUpdateReceiver)
+        sensorManager.unregisterListener(this)
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
+            val x = event.values[0]
+            val y = event.values[1]
+            val z = event.values[2]
+
+            val rawMagnitude = sqrt(x * x + y * y + z * z)
+            val netMagnitude = abs(rawMagnitude - SensorManager.GRAVITY_EARTH)
+
+            magnitudeWindow.add(netMagnitude)
+            if (magnitudeWindow.size > windowSize) {
+                magnitudeWindow.removeFirst()
+            }
+
+            val avgMagnitude = magnitudeWindow.average()
+
+            val predictedActivity = when {
+                avgMagnitude < 1.3 -> "STILL"
+                avgMagnitude in 1.3..4.0 -> "WALKING"
+                avgMagnitude in 4.1..6.5 -> "IN_VEHICLE"
+                avgMagnitude > 6.5 -> "RUNNING"
+                else -> "UNKNOWN"
+            }
+
+            Log.d("Sensor", "avgMagnitude: $avgMagnitude → predicted: $predictedActivity")
+
+            if (predictedActivity == currentStableActivity) {
+                activityConsistencyCounter++
+                if (activityConsistencyCounter >= stabilityThreshold && predictedActivity != lastActivity) {
+                    val duration = System.currentTimeMillis() - lastActivityStartTime
+                    if (lastActivity != null && duration > 3000) {
+                        showDurationToast()
+                    }
+
+                    updateActivityUI(predictedActivity)
+                    lastActivity = predictedActivity
+                    lastActivityStartTime = System.currentTimeMillis()
+                }
+            } else {
+                currentStableActivity = predictedActivity
+                activityConsistencyCounter = 1
+            }
+        }
+    }
+
+    private fun updateActivityUI(activity: String) {
+        binding.textActivity.text = "Current activity: $activity"
+
+        val icon = when (activity) {
+            "WALKING" -> R.drawable.ic_walking
+            "RUNNING" -> R.drawable.ic_running
+            "STILL" -> R.drawable.ic_still
+            "IN_VEHICLE" -> R.drawable.ic_vehicle
+            else -> R.drawable.ic_unknown
+        }
+
+        binding.imageActivity.setImageResource(icon)
+        Log.d("Sensor", "Updated activity UI to: $activity")
+    }
+
+    private fun showDurationToast() {
+        val duration = System.currentTimeMillis() - lastActivityStartTime
+        val seconds = (duration / 1000) % 60
+        val minutes = (duration / 1000) / 60
+
+        val pastTense = when (lastActivity) {
+            "WALKING" -> "walked"
+            "RUNNING" -> "ran"
+            "STILL" -> "been still"
+            "IN_VEHICLE" -> "been in a vehicle"
+            else -> "done something"
+        }
+
+        val message = "You have just $pastTense for $minutes min, $seconds sec"
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        Log.d("Sensor", "Toast: $message")
     }
 }
