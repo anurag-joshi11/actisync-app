@@ -14,6 +14,7 @@ import com.actisync.app.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
@@ -79,17 +80,19 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 magnitudeWindow.removeFirst()
             }
 
-            val avgMagnitude = magnitudeWindow.average()
+            val avg = magnitudeWindow.average()
+            val stdDev = sqrt(magnitudeWindow.map { (it - avg) * (it - avg) }.average())
+
+            Log.d("Sensor", "avg=%.2f, stdDev=%.2f".format(avg, stdDev))
 
             val predictedActivity = when {
-                avgMagnitude < 1.3 -> "STILL"
-                avgMagnitude in 1.3..4.0 -> "WALKING"
-                avgMagnitude in 4.1..6.5 -> "IN_VEHICLE"
-                avgMagnitude > 6.5 -> "RUNNING"
+                avg < 1.3 -> "STILL"
+                avg in 1.3..4.5 && stdDev >= 0.5 -> "WALKING"
+                avg in 1.3..6.5 && stdDev < 0.5 -> "IN_VEHICLE"
+                avg > 6.5 && stdDev < 0.4 -> "IN_VEHICLE"
+                avg > 6.5 && stdDev >= 0.4 -> "RUNNING"
                 else -> "UNKNOWN"
             }
-
-            Log.d("Sensor", "avgMagnitude: $avgMagnitude → predicted: $predictedActivity")
 
             if (predictedActivity == currentStableActivity) {
                 activityConsistencyCounter++
@@ -110,6 +113,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun updateActivityUI(activity: String) {
         binding.textActivity.text = "Current activity: $activity"
 
